@@ -4,7 +4,7 @@ import plotly.express as px
 
 # 1. 页面基本设置 (设置为宽屏)
 st.set_page_config(page_title="Power Bank Dashboard", layout="wide")
-st.title("🔋 充电宝市场价格与容量分析面板")
+st.title("充电宝竞品分析面板 Power Bank Competitor Analysis Dashboard")
 
 # 2. 数据读取与缓存配置
 @st.cache_data(ttl=600)  # 缓存10分钟，避免频繁请求
@@ -104,7 +104,7 @@ fig.update_layout(
 )
 
 # 6. 在 Streamlit 中渲染图表并【捕获点击事件】
-st.markdown("### 👇 选中任意散点，即可获取跳转链接")
+st.markdown("### 👇 选中任意散点，即可获取跳转链接 Select any point to get the product link.")
 event = st.plotly_chart(
     fig, 
     use_container_width=True, 
@@ -127,12 +127,12 @@ if event and event.selection.points:
         if pd.notna(link) and str(link).startswith("http"):
             st.success(f"✅ 您选中了: **{brand} - {model}**")
             # 显示一个显眼的跳转按钮
-            st.link_button(f"🛒 点击这里前往购买页面", link, type="primary")
+            st.link_button(f"🛒 点击这里前往产品链接", link, type="primary")
         else:
             st.warning(f"⚠️ 您选中了: **{brand} - {model}**，但数据表中暂无有效的跳转链接。")
 else:
-    st.info("🖱️ 提示：用鼠标在上方图表中点击任意一个散点。")
+    st.info("🖱️ 提示：用鼠标在上方图表中点击任意一个散点。Tip: Click on any point in the chart above.")
 
 # 底部数据预览表
-with st.expander("📊 查看底层原始数据"):
+with st.expander("📊 查看底层原始数据 View Original Data"):
     st.dataframe(filtered_df)
