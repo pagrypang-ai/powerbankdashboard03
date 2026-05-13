@@ -19,7 +19,7 @@ def load_data():
     if 'Price' in df.columns:
         df['Price'] = pd.to_numeric(df['Price'].astype(str).str.replace('[\$,]', '', regex=True), errors='coerce')
     
-    # 清洗容量列：确保为字符串格式以便作为分类轴，或者转换为数值
+    # 清洗容量列：确保为字符串格式以便作为分类轴
     if 'Capacity/mAh' in df.columns:
         df['Capacity/mAh'] = df['Capacity/mAh'].astype(str)
         
@@ -50,7 +50,7 @@ else:
     st.stop()
 
 # 4. 构建 Plotly 散点图
-# 将所有需要悬停显示的列按顺序放进一个列表中
+# 将所有需要悬停显示的列按顺序放进一个列表中 (注意 'Link' 在最后一个，即索引 20)
 hover_cols = [
     'Brand', 'Model Number', 'URL of Image', 'Pickup or not', 'Sold by', 
     'Rating', 'Number of Reviews', 'Was Price', 'Price', 'Capacity/mAh', 
@@ -62,7 +62,6 @@ hover_cols = [
 missing_cols = [col for col in hover_cols if col not in filtered_df.columns]
 if missing_cols:
     st.warning(f"数据表中缺失以下列，悬停框可能会显示不全: {', '.join(missing_cols)}")
-    # 将缺失的列补为空值，防止程序崩溃
     for col in missing_cols:
         filtered_df[col] = "N/A"
 
@@ -72,17 +71,15 @@ fig = px.scatter(
     x='Capacity/mAh',
     y='Price',
     color='Brand',
-    text='Brand',  # 【关键功能】在散点旁边显示品牌名
-    custom_data=hover_cols, # 将所有数据打包进图表，供悬停框调用
-    height=750
+    text='Brand',  # 在散点旁边显示品牌名
+    custom_data=hover_cols, # 将所有数据打包进图表，供悬停框和点击事件调用
+    height=650
 )
 
-# 5. 自定义图表样式与鼠标悬停弹窗 (Hover Tooltip)
+# 5. 自定义图表样式与鼠标悬停弹窗
 fig.update_traces(
-    textposition='top center', # 让品牌文字显示在圆点的正上方
-    marker=dict(size=14, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')), # 放大散点
-    
-    # 【修复重点】使用 Plotly 支持的基础文本格式，去除不支持的 img 和 table 标签
+    textposition='top center', 
+    marker=dict(size=14, opacity=0.8, line=dict(width=1, color='DarkSlateGrey')), 
     hovertemplate=(
         "<b>%{customdata[0]} - %{customdata[1]}</b><br><br>"
         "💰 <b>Price:</b> $%{customdata[8]}<br>"
@@ -94,21 +91,48 @@ fig.update_traces(
         "📦 <b>Size:</b> %{customdata[11]}<br>"
         "⚖️ <b>Weight:</b> %{customdata[12]}<br>"
         "🛒 <b>Sold by:</b> %{customdata[4]}<br>"
-        "<extra></extra>" # 隐藏默认的额外信息框
+        "<extra></extra>"
     )
 )
 
-# 优化坐标轴和背景显示
 fig.update_layout(
     xaxis_title="电池容量 (Capacity / mAh)",
     yaxis_title="价格 (Price / USD)",
     hoverlabel=dict(bgcolor="white", font_size=13, font_family="Arial"),
-    plot_bgcolor='#f9f9f9' # 设定浅灰色背景，让散点更清晰
+    plot_bgcolor='#f9f9f9',
+    clickmode='event+select' # 开启点击高亮反馈
 )
 
-# 6. 在 Streamlit 中渲染图表
-st.plotly_chart(fig, use_container_width=True)
+# 6. 在 Streamlit 中渲染图表并【捕获点击事件】
+st.markdown("### 👇 选中任意散点，即可获取跳转链接")
+event = st.plotly_chart(
+    fig, 
+    use_container_width=True, 
+    on_select="rerun",       # 点击时触发页面重载
+    selection_mode="points"  # 设置为点选模式
+)
 
-# 底部数据预览表 (折叠面板)
+# 7. 点击反馈逻辑：根据点击的散点生成跳转按钮
+if event and event.selection.points:
+    # 获取被点击的点所携带的数据 (customdata)
+    point_data = event.selection.points[0]
+    
+    if "customdata" in point_data:
+        # hover_cols 列表中，索引 20 是 Link，索引 0 是 Brand，索引 1 是 Model
+        link = point_data["customdata"][20]
+        brand = point_data["customdata"][0]
+        model = point_data["customdata"][1]
+        
+        # 检查链接是否为空且以 http 开头
+        if pd.notna(link) and str(link).startswith("http"):
+            st.success(f"✅ 您选中了: **{brand} - {model}**")
+            # 显示一个显眼的跳转按钮
+            st.link_button(f"🛒 点击这里前往购买页面", link, type="primary")
+        else:
+            st.warning(f"⚠️ 您选中了: **{brand} - {model}**，但数据表中暂无有效的跳转链接。")
+else:
+    st.info("🖱️ 提示：用鼠标在上方图表中点击任意一个散点。")
+
+# 底部数据预览表
 with st.expander("📊 查看底层原始数据"):
     st.dataframe(filtered_df)
